@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+
+members = [
+  "rain-dock",
+  "rain-appd",
+  "rain-shell"
+]
+
+[workspace.dependencies]
+rain-utils = { path = "rain-utils" }
+rain-client = { path = "rain-client" }
+rain-dock = { path = "rain-dock" }
+
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
+zbus = { version = "5.18.0", default-features = false, features = ["tokio"] }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+
+gtk = { version = "0.11", package = "gtk4", features = ["v4_12"] }
+gtk4-layer-shell = "0.8"
+
+calloop = "0.14"
+freedesktop-desktop-entry = "0.8"
+
+wayland-client = "0.31"
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

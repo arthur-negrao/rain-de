@@ -1,0 +1,5 @@
+[cargo]
+features = "all"
+
+[diagnostics]
+enable = false

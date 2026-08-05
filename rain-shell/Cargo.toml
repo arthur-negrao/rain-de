@@ -1,0 +1,14 @@
+[package]
+name = "rain-shell"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rain-dock = { workspace = true }
+rain-utils = { workspace = true }
+
+gtk = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }

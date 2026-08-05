@@ -1,0 +1,20 @@
+[package]
+name = "rain-dock"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rain-client = { workspace = true }
+
+async-channel = "2.5.0"
+calloop = { workspace = true }
+freedesktop-desktop-entry = { workspace = true }
+gtk = { workspace = true }
+gtk4-layer-shell = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+wayland-client = { workspace = true }
+wayland-protocols-wlr = { workspace = true }
+zbus = { workspace = true }
