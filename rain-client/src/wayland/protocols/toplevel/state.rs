@@ -1,18 +1,17 @@
 use std::collections::HashMap;
 
 use kanal::AsyncSender;
-
 use tracing::{debug, trace};
 use wayland_client::{Proxy, protocol::wl_seat::WlSeat};
 use wayland_protocols_wlr::foreign_toplevel::v1::client::zwlr_foreign_toplevel_handle_v1::{
     Event as WindowEvent, State, ZwlrForeignToplevelHandleV1,
 };
 
-use super::event::{EventType, ToplevelPendingEvent, WindowData, WindowHeader, WindowState};
-use crate::wayland::{
-    event::Event,
-    protocols::toplevel::{command::ToplevelCommand, event::ToplevelEvent},
-};
+use crate::wayland::event::Event;
+
+use super::command::ToplevelCommand;
+use super::event::{EventType, ToplevelEvent, ToplevelPendingEvent};
+use super::window::{WindowData, WindowHeader, WindowState};
 
 pub struct ToplevelState {
     events_sender: AsyncSender<Event>,
@@ -159,7 +158,7 @@ impl ToplevelState {
                         let _ = self
                             .events_sender
                             .as_sync()
-                            .send(Event::Toplevel(ToplevelEvent::Opened(window_data)));
+                            .send(ToplevelEvent::Opened(window_data).into());
                     }
                     EventType::Closed => {
                         debug!(?window_data, "The window has been closed");
@@ -168,7 +167,7 @@ impl ToplevelState {
                         let _ = self
                             .events_sender
                             .as_sync()
-                            .send(Event::Toplevel(ToplevelEvent::Closed(window_data)));
+                            .send(ToplevelEvent::Closed(window_data).into());
                     }
                     EventType::StateChanged => {
                         trace!(?window_data, "The window has the state changed");
@@ -176,7 +175,7 @@ impl ToplevelState {
                         let _ = self
                             .events_sender
                             .as_sync()
-                            .send(Event::Toplevel(ToplevelEvent::StateChanged(window_data)));
+                            .send(ToplevelEvent::StateChanged(window_data).into());
                     }
                 }
             }

@@ -1,3 +1,6 @@
+use super::window::*;
+use crate::wayland::Event;
+
 #[derive(Debug, Default)]
 pub enum EventType {
     #[default]
@@ -14,30 +17,25 @@ pub struct ToplevelPendingEvent {
     pub state: WindowState,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct WindowHeader {
-    pub app_id: String,
-    pub app_title: String,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct WindowState {
-    pub is_focused: bool,
-    pub is_maximized: bool,
-    pub is_minimized: bool,
-    pub is_fullscreen: bool,
-}
-
-#[derive(Debug, Default)]
-pub struct WindowData {
-    pub window_id: u32,
-    pub header: WindowHeader,
-    pub state: WindowState,
-}
-
 #[derive(Debug)]
 pub enum ToplevelEvent {
     Opened(WindowData),
     Closed(WindowData),
     StateChanged(WindowData),
+}
+
+impl From<ToplevelEvent> for Event {
+    fn from(value: ToplevelEvent) -> Self {
+        Event::Toplevel(value)
+    }
+}
+
+impl TryFrom<Event> for ToplevelEvent {
+    type Error = Event;
+
+    fn try_from(value: Event) -> Result<Self, Self::Error> {
+        match value {
+            Event::Toplevel(toplevel) => Ok(toplevel),
+        }
+    }
 }

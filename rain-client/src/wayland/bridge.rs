@@ -54,8 +54,8 @@ impl Bridge {
     ///
     /// The method returns a [`std::sync::mpsc::SendError`] if the
     /// [`calloop::channel::Channel`] was disconnected in Wayland Thread.
-    pub fn send(&self, cmd: Command) -> Result<(), mpsc::SendError<Command>> {
-        self.commands_sender.send(cmd)
+    pub fn send(&self, cmd: impl Into<Command>) -> Result<(), mpsc::SendError<Command>> {
+        self.commands_sender.send(cmd.into())
     }
 
     /// Receive a [`Event`] from Wayland Thread.
