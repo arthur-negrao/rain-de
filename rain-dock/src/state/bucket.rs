@@ -1,13 +1,14 @@
 use std::cell::{OnceCell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
 
-use crate::shared::event::WindowState;
-
-use super::dock_app::DockApp;
 use gtk::gio;
 use gtk::glib;
 use gtk::glib::subclass::prelude::*;
 use gtk::prelude::*;
+
+use rain_client::wayland::protocols::toplevel::WindowState;
+
+use super::dock_app::DockApp;
 
 mod imp {
     use std::{cell::Cell, collections::HashMap};

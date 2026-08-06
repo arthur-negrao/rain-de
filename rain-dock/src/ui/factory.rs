@@ -7,7 +7,8 @@ use gtk::{ListItem, SignalListItemFactory};
 
 use tracing::debug;
 
-use crate::shared::command::WaylandCommand;
+use rain_client::wayland::protocols::toplevel::ToplevelCommand;
+
 use crate::state::bucket::DockBucket;
 use crate::state::manager::DockState;
 use crate::ui::bucket_button::BucketButton;
@@ -149,10 +150,10 @@ fn bind_dock_btn(list_item: &glib::Object, state: DockState) {
             if let Some(app) = bucket.bucket().get(&bucket.last_focus()) {
                 let cmd = if !app.is_focused() {
                     debug!("Focus on window: {}", app.title());
-                    WaylandCommand::Focus(app.id())
+                    ToplevelCommand::Focus(app.id())
                 } else {
                     debug!("Minimize window: {}", app.title());
-                    WaylandCommand::Minimize((app.id(), true))
+                    ToplevelCommand::Minimize((app.id(), true))
                 };
 
                 state.send_command(cmd);

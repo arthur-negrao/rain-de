@@ -3,10 +3,9 @@ use gtk::glib::{self};
 use gtk::prelude::*;
 use tracing::{debug, info, warn};
 
-use crate::{
-    shared::command::WaylandCommand,
-    state::{bucket::DockBucket, manager::DockState},
-};
+use rain_client::wayland::protocols::toplevel::ToplevelCommand;
+
+use crate::state::{bucket::DockBucket, manager::DockState};
 
 pub(super) fn build_opened_windows_view(menu_box: gtk::Box, bucket: DockBucket, state: DockState) {
     let windows = bucket.bucket();
@@ -53,7 +52,7 @@ pub(super) fn build_opened_windows_view(menu_box: gtk::Box, bucket: DockBucket, 
                 window,
                 move |gesture, _n_press, _x, _y| {
                     debug!("Send Close request to window: {}", window.title());
-                    state.send_command(WaylandCommand::Close(window_id_unwrap));
+                    state.send_command(ToplevelCommand::Close(window_id_unwrap));
 
                     // stop propagation
                     gesture.set_state(gtk::EventSequenceState::Claimed);
@@ -75,7 +74,7 @@ pub(super) fn build_opened_windows_view(menu_box: gtk::Box, bucket: DockBucket, 
                 window,
                 move |_btn| {
                     debug!("Send Focus request to window: {}", window.title());
-                    state.send_command(WaylandCommand::Focus(window_id_unwrap));
+                    state.send_command(ToplevelCommand::Focus(window_id_unwrap));
                 }
             ));
 
@@ -170,7 +169,7 @@ pub(super) fn build_popover_btn_minimize_window(
         if let Some(app) = bucket.bucket().get(&bucket.last_focus()) {
             let set = !app.is_minimized();
 
-            state.send_command(WaylandCommand::Minimize((app.id(), set)));
+            state.send_command(ToplevelCommand::Minimize((app.id(), set)));
 
             info!(
                 "{} Minimize request to the window: {}",
@@ -196,7 +195,7 @@ pub(super) fn build_popover_btn_fullscreen_window(
         if let Some(app) = bucket.bucket().get(&bucket.last_focus()) {
             let set = !app.is_fullscreen();
 
-            state.send_command(WaylandCommand::Fullscreen((app.id(), set)));
+            state.send_command(ToplevelCommand::Fullscreen((app.id(), set)));
 
             info!(
                 "{} Fullscreen request to the window: {}",
@@ -222,7 +221,7 @@ pub(super) fn build_popover_btn_close_all_windows(
 
         for (window_id, app) in bucket.bucket().iter() {
             debug!("Send close command to wayland to window: {}", app.title());
-            state.send_command(WaylandCommand::Close(*window_id));
+            state.send_command(ToplevelCommand::Close(*window_id));
         }
         popover.popdown();
     });
@@ -270,7 +269,7 @@ pub(super) fn build_popover_btn_close_current_window(
     btn.connect_clicked(move |_| {
         if let Some(app) = bucket.bucket().get(&bucket.last_focus()) {
             info!("Close request to the window: {}", app.title());
-            state.send_command(WaylandCommand::Close(app.id()));
+            state.send_command(ToplevelCommand::Close(app.id()));
 
             popover.popdown();
         }

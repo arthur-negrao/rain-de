@@ -4,9 +4,10 @@ use std::path::PathBuf;
 
 use rain_client::appd::entry::AppdProxy;
 use rain_client::dto::AppEntryDTO;
+use rain_client::wayland::Bridge;
+use rain_client::wayland::protocols::toplevel::{ToplevelCommand, WindowData, WindowState};
 use tracing::{debug, error, info, warn};
 
-use calloop::channel::Sender;
 use gtk::gio;
 use gtk::glib;
 use gtk::glib::subclass::prelude::*;
@@ -16,8 +17,6 @@ use gtk::{
     glib::object::Cast,
 };
 
-use crate::shared::command::WaylandCommand;
-use crate::shared::event::{WindowData, WindowState};
 use crate::state::bucket::DockBucket;
 use crate::state::dock_app::DockApp;
 use crate::state::save_state::{PinnedApp, PinnedJson};
@@ -26,7 +25,7 @@ mod imp {
     use std::{cell::OnceCell, rc::Rc};
 
     use gtk::glib::{Properties, subclass::types::ObjectSubclass};
-    use rain_client::{appd::entry::AppdProxy, dto::AppEntryDTO};
+    use rain_client::{appd::entry::AppdProxy, dto::AppEntryDTO, wayland::Bridge};
 
     use super::*;
 
@@ -56,7 +55,7 @@ mod imp {
         #[property(get, set)]
         pub popup_is_open: Cell<bool>,
 
-        pub commands_sender: OnceCell<Sender<WaylandCommand>>,
+        pub wayland_bridge: OnceCell<Bridge>,
 
         pub app_entries_cache: Rc<RefCell<HashMap<String, AppEntryDTO>>>,
 
@@ -76,7 +75,7 @@ mod imp {
                 popup_is_open: Cell::new(false),
                 app_entries_cache: Rc::new(RefCell::new(HashMap::default())),
                 appd_proxy: Rc::new(OnceCell::new()),
-                commands_sender: OnceCell::new(),
+                wayland_bridge: OnceCell::new(),
             }
         }
     }
@@ -547,11 +546,11 @@ impl DockState {
         self.pinned_buckets().n_items() == 0 && self.buckets().n_items() == 0
     }
 
-    pub fn set_commands_sender(&self, sender: Sender<WaylandCommand>) {
+    pub fn set_wayland_bridge(&self, bridge: Bridge) {
         self.imp()
-            .commands_sender
-            .set(sender)
-            .expect("The Sender has already been initialized!");
+            .wayland_bridge
+            .set(bridge)
+            .expect("The Bridge has already been initialized!");
     }
 
     pub fn set_appd_proxy(&self, proxy: AppdProxy<'static>) {
@@ -561,9 +560,11 @@ impl DockState {
             .expect("The AppdProxy has already been initialized!");
     }
 
-    pub fn send_command(&self, cmd: WaylandCommand) {
-        if let Some(sender) = self.imp().commands_sender.get() {
+    pub fn send_command(&self, cmd: ToplevelCommand) {
+        if let Some(sender) = self.imp().wayland_bridge.get() {
             let _ = sender.send(cmd);
+        } else {
+            warn!("The Wayland Bridge is not set.");
         }
     }
 

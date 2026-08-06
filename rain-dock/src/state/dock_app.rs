@@ -4,7 +4,7 @@ use gtk::glib;
 use gtk::glib::subclass::prelude::*;
 use gtk::prelude::*;
 
-use crate::shared::event::WindowState;
+use rain_client::wayland::protocols::toplevel::WindowState;
 
 mod imp {
     use std::cell::OnceCell;

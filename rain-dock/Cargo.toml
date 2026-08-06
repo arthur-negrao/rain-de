@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 rain-client = { workspace = true }
 
-async-channel = "2.5.0"
 calloop = { workspace = true }
 freedesktop-desktop-entry = { workspace = true }
 gtk = { workspace = true }

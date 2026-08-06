@@ -1,12 +1,13 @@
 use gtk::glib;
 use gtk::{Application, ApplicationWindow, Orientation, Revealer, prelude::*};
-use rain_client::appd::entry::connect_to_appd;
 use tracing::error;
+
+use rain_client::appd::entry::connect_to_appd;
+use rain_client::wayland::Bridge;
 
 use crate::{
     state::manager::DockState,
     ui::{css_loader::load_css, factory::build_buckets_view, layer_shell::apply_layer_shell},
-    wayland::bridge::Bridge,
 };
 
 pub struct Dock {
@@ -84,20 +85,28 @@ impl Dock {
 
 /// Build a window with the dock
 pub fn build_dock(app: &Application) {
-    let proxy_result = glib::MainContext::default().block_on(async { connect_to_appd().await });
-
     let state = DockState::new();
 
-    match proxy_result {
-        Err(e) => {
-            error!("Failed to connect with appd: {}", e);
-        }
-        Ok(proxy) => {
-            state.set_appd_proxy(proxy);
-        }
-    };
+    glib::MainContext::default().spawn_local(glib::clone!(
+        #[strong]
+        state,
+        async move {
+            let proxy_result = connect_to_appd().await;
 
-    Bridge::init(state.clone());
+            match proxy_result {
+                Err(e) => {
+                    error!("Failed to connect with appd: {}", e);
+                }
+                Ok(proxy) => {
+                    state.set_appd_proxy(proxy);
+                }
+            };
+        }
+    ));
+
+    if let Ok(bridge) = Bridge::new() {
+        state.set_wayland_bridge(bridge);
+    }
 
     let window = ApplicationWindow::builder()
         .application(app)
