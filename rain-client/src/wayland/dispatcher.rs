@@ -1,4 +1,4 @@
-use std::{collections::HashMap, thread};
+use std::thread;
 
 use calloop::{EventLoop, channel::Channel};
 use kanal::AsyncSender;
@@ -10,21 +10,17 @@ use wayland_client::{
 };
 
 use wayland_protocols_wlr::foreign_toplevel::v1::client::{
-    zwlr_foreign_toplevel_handle_v1::{Event as ToplevelEvent, ZwlrForeignToplevelHandleV1},
+    zwlr_foreign_toplevel_handle_v1::ZwlrForeignToplevelHandleV1,
     zwlr_foreign_toplevel_manager_v1 as toplevel_manager,
 };
 
 use super::command::Command;
-use super::event::{Event, EventType, PendingEvent};
-use super::handlers::handle_wayland_command;
-use super::handlers::{handle_toplevel_done_event, handle_toplevel_state_event};
+use super::event::Event;
+use super::protocols::toplevel::ToplevelState;
 use super::wayland_source::WaylandSource;
 
-#[derive(Debug)]
 pub struct WaylandState {
-    pub(super) pending_events: HashMap<ZwlrForeignToplevelHandleV1, PendingEvent>,
-    pub(super) events_sender: AsyncSender<Event>,
-    pub(super) seat: Option<WlSeat>,
+    pub(super) toplevel_state: ToplevelState,
 }
 
 impl WaylandState {
@@ -37,10 +33,10 @@ impl WaylandState {
 
                 let display = conn.display();
 
+                let toplevel_state = ToplevelState::new(events_sender);
+
                 let mut state = Self {
-                    pending_events: HashMap::default(),
-                    events_sender: events_sender,
-                    seat: None,
+                    toplevel_state: toplevel_state,
                 };
 
                 let mut event_queue = conn.new_event_queue::<WaylandState>();
@@ -89,18 +85,6 @@ impl WaylandState {
             })
             .expect("Error to init the wayland thread");
     }
-
-    pub fn find_protocol_by_id(&mut self, window_id: u32) -> Option<ZwlrForeignToplevelHandleV1> {
-        let result = self
-            .pending_events
-            .iter()
-            .find(|(protocol, _)| protocol.id().protocol_id() == window_id);
-
-        match result {
-            None => None,
-            Some((protocol, _)) => Some(protocol.clone()),
-        }
-    }
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
@@ -127,7 +111,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WaylandState {
                 );
             } else if interface == WlSeat::interface().name {
                 let seat = proxy.bind::<WlSeat, _, _>(name, version, &qhandle, ());
-                state.seat = Some(seat);
+                state.toplevel_state.set_seat(seat);
             }
         }
     }
@@ -157,9 +141,7 @@ impl Dispatch<toplevel_manager::ZwlrForeignToplevelManagerV1, ()> for WaylandSta
     ) {
         match event {
             toplevel_manager::Event::Toplevel { toplevel } => {
-                state
-                    .pending_events
-                    .insert(toplevel, PendingEvent::default());
+                state.toplevel_state.insert_pending_event(toplevel);
             }
             _ => {}
         };
@@ -184,32 +166,14 @@ impl Dispatch<ZwlrForeignToplevelHandleV1, ()> for WaylandState {
         _conn: &wayland_client::Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        match event {
-            ToplevelEvent::Title { title } => {
-                if let Some(window) = state.pending_events.get_mut(proxy) {
-                    window.app_title = Some(title);
-                }
-            }
-            ToplevelEvent::AppId { app_id } => {
-                if let Some(window) = state.pending_events.get_mut(proxy) {
-                    window.app_id = Some(app_id);
-                }
-            }
-            ToplevelEvent::State {
-                state: window_states,
-            } => {
-                handle_toplevel_state_event(state, proxy, window_states);
-            }
-            ToplevelEvent::Closed => {
-                if let Some(window) = state.pending_events.get_mut(proxy) {
-                    // cleanup the window
-                    window.event_type = EventType::Closed;
-                }
-            }
-            ToplevelEvent::Done => {
-                handle_toplevel_done_event(state, proxy);
-            }
-            _ => {}
+        state.toplevel_state.handle_event(proxy, event);
+    }
+}
+
+fn handle_wayland_command(shared_state: &mut WaylandState, cmd: Command) {
+    match cmd {
+        Command::Toplevel(command) => {
+            shared_state.toplevel_state.handle_command(command);
         }
     }
 }

@@ -28,6 +28,8 @@ gtk4-layer-shell = "0.8"
 calloop = "0.14"
 freedesktop-desktop-entry = "0.8"
 
+kanal = { version = "0.1" }
+
 wayland-client = "0.31"
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 

@@ -9,4 +9,11 @@ zbus = { workspace = true }
 serde = { workspace = true }
 freedesktop-desktop-entry = { workspace = true }
 tokio = { workspace = true }
+
 tracing = { workspace = true }
+
+kanal = { workspace = true }
+
+calloop = { workspace = true }
+wayland-client = { workspace = true }
+wayland-protocols-wlr = { workspace = true }

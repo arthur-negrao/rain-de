@@ -748,6 +748,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kanal"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e3953adf0cd667798b396c2fa13552d6d9b3269d7dd1154c4c416442d1ff574"
+dependencies = [
+ "futures-core",
+ "lock_api",
+]
+
+[[package]]
 name = "khronos_api"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -782,6 +792,15 @@ dependencies = [
  "objc-foundation",
  "regex",
  "winapi",
+]
+
+[[package]]
+name = "lock_api"
+version = "0.4.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
+dependencies = [
+ "scopeguard",
 ]
 
 [[package]]
@@ -1016,11 +1035,15 @@ dependencies = [
 name = "rain-client"
 version = "0.1.0"
 dependencies = [
+ "calloop",
  "freedesktop-desktop-entry",
  "gtk4",
+ "kanal",
  "serde",
  "tokio",
  "tracing",
+ "wayland-client",
+ "wayland-protocols-wlr",
  "zbus",
 ]
 
@@ -1121,6 +1144,12 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "scopeguard"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "semver"
