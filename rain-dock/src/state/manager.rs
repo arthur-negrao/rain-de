@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use rain_client::appd::entry::AppdProxy;
 use rain_client::dto::AppEntryDTO;
 use rain_client::wayland::Bridge;
-use rain_client::wayland::protocols::toplevel::{ToplevelCommand, WindowData, WindowState};
+use rain_client::wayland::protocols::toplevel::{
+    ToplevelCommand, ToplevelEvent, WindowData, WindowState,
+};
 use tracing::{debug, error, info, warn};
 
 use gtk::gio;
@@ -414,7 +416,7 @@ impl DockState {
                     }
                 };
             } else {
-                error!("Failed to get the AppdProxy. The Proxy is None.");
+                warn!("Failed to get the AppdProxy. The Proxy is None.");
             }
         });
     }
@@ -436,7 +438,7 @@ impl DockState {
         gio::ThemedIcon::from_names(&icon_names).upcast::<gio::Icon>()
     }
 
-    /// Load all pinned apps.
+    /// Load all pinned apps from the default json.
     fn load_pinned_buckets(&self) {
         let Ok(home_path) = std::env::var("HOME") else {
             error!("HOME environment variable is not set. Can not load pinned apps.");
@@ -468,6 +470,7 @@ impl DockState {
         info!("Pinned buckets were successfully loaded.");
     }
 
+    /// Save all pinned buckets in a json to read when starts.
     fn save_pinned_buckets(&self) {
         let mut pinned_apps = Vec::<PinnedApp>::new();
         let n = self.pinned_buckets().n_items();
@@ -553,18 +556,90 @@ impl DockState {
             .expect("The Bridge has already been initialized!");
     }
 
+    /// Set the [`rain_client::appd::entry::AppdProxy`] and retry resolve all
+    /// bucket entries.
     pub fn set_appd_proxy(&self, proxy: AppdProxy<'static>) {
         self.imp()
             .appd_proxy
             .set(proxy)
             .expect("The AppdProxy has already been initialized!");
+
+        self.retry_unresolved_entries();
     }
 
+    /// Retry resolve all entries after the Appd connection as soon as it is
+    /// established.
+    fn retry_unresolved_entries(&self) {
+        let buckets = self.buckets();
+        let n = buckets.n_items();
+        for bucket_idx in 0..n {
+            if let Some(bucket_obj) = buckets.item(bucket_idx) {
+                if let Some(bucket) = bucket_obj.downcast_ref::<DockBucket>() {
+                    self.resolve_entry(&bucket.app_class(), bucket);
+                }
+            }
+        }
+
+        let buckets = self.pinned_buckets();
+        let n = buckets.n_items();
+        for bucket_idx in 0..n {
+            if let Some(bucket_obj) = buckets.item(bucket_idx) {
+                if let Some(bucket) = bucket_obj.downcast_ref::<DockBucket>() {
+                    self.resolve_entry(&bucket.app_class(), bucket);
+                }
+            }
+        }
+    }
+
+    /// Send a command to a Wayland Client.
+    ///
+    /// This method is a way to send
+    /// [`rain_client::wayland::protocols::toplevel::ToplevelCommand`] to
+    /// Wayland Thread by the [`rain_client::wayland::Bridge`].
     pub fn send_command(&self, cmd: ToplevelCommand) {
         if let Some(sender) = self.imp().wayland_bridge.get() {
             let _ = sender.send(cmd);
         } else {
             warn!("The Wayland Bridge is not set.");
+        }
+    }
+
+    /// Receive wayland events using the [`rain_client::wayland::Bridge`].
+    ///
+    /// Start a task to listen the Wayland Thread and update the dock state.
+    ///
+    /// # Async
+    /// This method is not blocking.
+    pub fn recv_wayland_events(&self) {
+        if let Some(bridge_ref) = self.imp().wayland_bridge.get() {
+            let bridge = bridge_ref.clone();
+            let state = self.clone();
+
+            glib::MainContext::default().spawn_local(async move {
+                while let Ok(event_raw) = bridge.recv().await {
+                    // if is a Erro, then is not a toplevel event
+                    if let Ok(event) = ToplevelEvent::try_from(event_raw) {
+                        match event {
+                            ToplevelEvent::Opened(data) => {
+                                let app = DockApp::new(
+                                    data.window_id,
+                                    &data.header.app_title,
+                                    data.state,
+                                );
+                                state.add_app(&data.header.app_id, app);
+                            }
+                            ToplevelEvent::Closed(data) => {
+                                state.remove_bucket(&data.header.app_id);
+                            }
+                            ToplevelEvent::StateChanged(data) => {
+                                state.process_state_changed(data);
+                            }
+                        };
+                    }
+                }
+            });
+        } else {
+            error!("The Wayland Bridge is None. Can not receive wayland events.");
         }
     }
 

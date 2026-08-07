@@ -104,9 +104,18 @@ pub fn build_dock(app: &Application) {
         }
     ));
 
-    if let Ok(bridge) = Bridge::new() {
-        state.set_wayland_bridge(bridge);
-    }
+    match Bridge::new() {
+        Ok(bridge) => {
+            state.set_wayland_bridge(bridge);
+            state.recv_wayland_events();
+        }
+        Err(e) => {
+            error!(
+                "The Wayland Bridge already is started. Can not start it again: {}",
+                e
+            );
+        }
+    };
 
     let window = ApplicationWindow::builder()
         .application(app)
