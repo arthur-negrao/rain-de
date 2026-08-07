@@ -1058,6 +1058,7 @@ name = "rain-shell"
 version = "0.1.0"
 dependencies = [
  "gtk4",
+ "rain-client",
  "rain-dock",
  "rain-utils",
  "tokio",

@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 rain-dock = { workspace = true }
 rain-utils = { workspace = true }
+rain-client = { workspace = true }
 
 gtk = { workspace = true }
 tokio = { workspace = true }

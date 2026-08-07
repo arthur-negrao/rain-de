@@ -83,9 +83,11 @@ impl Dock {
     }
 }
 
-/// Build a window with the dock
-pub fn build_dock(app: &Application) {
-    let state = DockState::new();
+/// Build a dock window
+///
+/// The `bridge` is a communication between the dock and the Wayland Thread.
+pub fn build_dock(app: &Application, bridge: Bridge) {
+    let state = DockState::new(bridge);
 
     glib::MainContext::default().spawn_local(glib::clone!(
         #[strong]
@@ -103,19 +105,6 @@ pub fn build_dock(app: &Application) {
             };
         }
     ));
-
-    match Bridge::new() {
-        Ok(bridge) => {
-            state.set_wayland_bridge(bridge);
-            state.recv_wayland_events();
-        }
-        Err(e) => {
-            error!(
-                "The Wayland Bridge already is started. Can not start it again: {}",
-                e
-            );
-        }
-    };
 
     let window = ApplicationWindow::builder()
         .application(app)

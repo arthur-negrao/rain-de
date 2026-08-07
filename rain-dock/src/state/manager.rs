@@ -113,8 +113,9 @@ impl DockState {
     const XDG_PINNED_JSON_PATH: &str = ".config/rain/rain-dock/pinned.json";
 
     /// Create a new instance of the Dock
-    pub fn new() -> Self {
+    pub fn new(bridge: Bridge) -> Self {
         let obj: Self = glib::Object::builder().build();
+        obj.set_wayland_bridge(bridge);
         obj.load_pinned_buckets();
 
         return obj;
@@ -161,6 +162,8 @@ impl DockState {
             return;
         }
 
+        self.set_is_visible(true);
+
         self.set_bucket_on_map(&bucket.app_class(), pinned);
 
         let buckets = match pinned {
@@ -186,6 +189,10 @@ impl DockState {
     /// Remove the entire bucket if it is not pinned and is empty.
     pub fn remove_app(&self, app_class: &str, window_id: u32) -> Option<DockApp> {
         let bucket = self.find_bucket(app_class)?;
+
+        if bucket.is_focused() {
+            self.set_bucket_focused(None);
+        }
 
         let removed_app = bucket.remove(window_id);
 
@@ -221,8 +228,16 @@ impl DockState {
         if let Some((buckets, bucket_idx)) = self.find_bucket_location(app_class) {
             let bucket = buckets.item(bucket_idx)?.downcast::<DockBucket>().ok()?;
 
+            if bucket.is_focused() {
+                self.set_bucket_focused(None);
+            }
+
             buckets.remove(bucket_idx);
             self.remove_bucket_from_map(app_class);
+
+            if self.is_empty() {
+                self.set_is_visible(false);
+            }
 
             return Some(bucket);
         }
@@ -360,7 +375,7 @@ impl DockState {
 
     /// Remove the bucket entry from the map.
     ///
-    /// The bucket `app_class` will be removed from the map.
+    /// The bucket `app_class` will be removed from the pinned map.
     ///
     /// # Complexity
     /// O(1)
@@ -554,6 +569,8 @@ impl DockState {
             .wayland_bridge
             .set(bridge)
             .expect("The Bridge has already been initialized!");
+
+        self.recv_wayland_events();
     }
 
     /// Set the [`rain_client::appd::entry::AppdProxy`] and retry resolve all
@@ -629,7 +646,7 @@ impl DockState {
                                 state.add_app(&data.header.app_id, app);
                             }
                             ToplevelEvent::Closed(data) => {
-                                state.remove_bucket(&data.header.app_id);
+                                state.remove_app(&data.header.app_id, data.window_id);
                             }
                             ToplevelEvent::StateChanged(data) => {
                                 state.process_state_changed(data);

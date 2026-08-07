@@ -3,6 +3,9 @@ use gtk::{
     gio::prelude::{ApplicationExt, ApplicationExtManual},
 };
 
+use tracing::error;
+
+use rain_client::wayland::Bridge;
 use rain_dock::ui::bar::build_dock;
 use rain_utils::log::telemetry::init_telemetry;
 
@@ -21,7 +24,17 @@ fn main() -> gtk::glib::ExitCode {
         .application_id(APPLICATION_NAME)
         .build();
 
-    app.connect_activate(build_dock);
+    match Bridge::new() {
+        Ok(bridge) => {
+            app.connect_activate(move |app| build_dock(app, bridge.clone()));
+        }
+        Err(e) => {
+            error!(
+                "Fail to run Dock. The Wayland Bridge already is started. Can not start it again: {}",
+                e
+            );
+        }
+    };
 
     app.run()
 }
