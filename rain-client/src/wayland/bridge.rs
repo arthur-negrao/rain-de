@@ -3,7 +3,7 @@ use std::sync::{OnceLock, mpsc};
 
 use calloop::channel::channel as calloop_channel;
 use kanal::bounded_async;
-use tracing::error;
+use tracing::{error, info};
 
 use super::command::Command;
 use super::dispatcher::WaylandState;
@@ -28,13 +28,15 @@ impl Bridge {
     /// If the method is called more than 1 time in all program process, it will
     /// returns a Error.
     pub fn new() -> io::Result<Self> {
-        if !WAYLAND_STATE_STARTED.set(()).is_err() {
+        if WAYLAND_STATE_STARTED.set(()).is_err() {
             let error_msg = "The Wayland Bridge has already started! Can not start the Bridge more than 1 time. Use `clone()` instead of `new()`.";
 
             error!("{}", error_msg);
 
             return Err(io::Error::new(io::ErrorKind::AlreadyExists, error_msg));
         }
+
+        info!("Starting the Wayland Thread.");
 
         let (events_sender, events_receiver) = bounded_async(32);
         let (commands_sender, commands_receiver) = calloop_channel();
