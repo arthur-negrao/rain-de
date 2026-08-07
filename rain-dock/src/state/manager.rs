@@ -21,7 +21,7 @@ use gtk::{
 
 use crate::state::bucket::DockBucket;
 use crate::state::dock_app::DockApp;
-use crate::state::save_state::{PinnedApp, PinnedJson};
+use crate::state::persistence::{PinnedApp, PinnedJson};
 
 mod imp {
     use std::{cell::OnceCell, rc::Rc};
@@ -492,9 +492,9 @@ impl DockState {
             return;
         };
 
-        for pinned_app in pinned_json.pinned_apps {
-            debug!("Loading pinned bucket: {}", pinned_app.app_class);
-            self.pin_bucket_in_ram(&pinned_app.app_class, None);
+        for pinned_app in pinned_json.iter() {
+            debug!("Loading pinned bucket: {}", pinned_app.app_class());
+            self.pin_bucket_in_ram(pinned_app.app_class(), None);
         }
 
         info!("Pinned buckets were successfully loaded.");
@@ -502,7 +502,7 @@ impl DockState {
 
     /// Save all pinned buckets in a json to read when starts.
     fn save_pinned_buckets(&self) {
-        let mut pinned_apps = Vec::<PinnedApp>::new();
+        let mut pinned_apps = PinnedJson::new();
         let n = self.pinned_buckets().n_items();
         let buckets = self.pinned_buckets();
 
@@ -530,14 +530,12 @@ impl DockState {
         for i in 0..n {
             if let Some(pinned_obj) = buckets.item(i) {
                 if let Some(pinned_bucket) = pinned_obj.downcast_ref::<DockBucket>() {
-                    pinned_apps.push(PinnedApp {
-                        app_class: pinned_bucket.app_class(),
-                    });
+                    pinned_apps.push(PinnedApp(pinned_bucket.app_class()));
                 }
             }
         }
 
-        let Ok(pinned_json) = serde_json::to_string(&PinnedJson { pinned_apps }) else {
+        let Ok(pinned_json) = serde_json::to_string(&pinned_apps) else {
             error!("Error to convert pinned buckets to json.");
             return;
         };
