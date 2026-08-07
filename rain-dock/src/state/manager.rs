@@ -205,6 +205,8 @@ impl DockState {
         removed_app
     }
 
+    /// Update a app with a
+    /// [`rain_client::wayland::protocols::toplevel::WindowState`].
     pub fn update_app(
         &self,
         app_class: &str,
@@ -279,9 +281,12 @@ impl DockState {
     /// Move a bucket to the `pinned_buckets` at the `index` if it is
     /// not `None`.
     ///
+    /// This method not save the `pinned_buckets` after perform a pin, it just
+    /// save them in `RAM`.
+    ///
     /// # Complexity
     /// O(n)
-    pub fn pin_bucket(&self, app_class: &str, index: Option<u32>) {
+    fn pin_bucket_in_ram(&self, app_class: &str, index: Option<u32>) {
         match self.is_pinned(app_class) {
             Some(false) => {
                 let bucket = self
@@ -289,7 +294,6 @@ impl DockState {
                     .expect("The removed item must be a DockBucket");
 
                 self.insert_bucket(bucket, index, true);
-                self.save_pinned_buckets();
             }
             // make a new bucket
             None => {
@@ -297,11 +301,22 @@ impl DockState {
                 let bucket = DockBucket::new(app_class, icon);
 
                 self.insert_bucket(bucket, index, true);
-                self.save_pinned_buckets();
             }
             // already pinned
             Some(true) => {}
         }
+    }
+
+    /// Move a bucket to the `pinned_buckets` at the `index` if it is
+    /// not `None`.
+    ///
+    /// This method always save the pinned buckets after the pin in a json.
+    ///
+    /// # Complexity
+    /// O(n)
+    pub fn pin_bucket(&self, app_class: &str, index: Option<u32>) {
+        self.pin_bucket_in_ram(app_class, index);
+        self.save_pinned_buckets();
     }
 
     /// Move a bucket to the free `buckets` at the `index` if it is
@@ -479,7 +494,7 @@ impl DockState {
 
         for pinned_app in pinned_json.pinned_apps {
             debug!("Loading pinned bucket: {}", pinned_app.app_class);
-            self.pin_bucket(&pinned_app.app_class, None);
+            self.pin_bucket_in_ram(&pinned_app.app_class, None);
         }
 
         info!("Pinned buckets were successfully loaded.");
@@ -660,6 +675,7 @@ impl DockState {
         }
     }
 
+    /// Change the dock's focus to the `app_class` bucket.
     pub fn change_focus(&self, app_class: &str) {
         // if has a old focus
         if let Some(old_focus_bucket) = self
@@ -677,6 +693,7 @@ impl DockState {
         }
     }
 
+    /// Handle the window client state change.
     pub fn process_state_changed(&self, data: WindowData) {
         let app_class = &data.header.app_id;
         let is_focused = data.state.is_focused;
