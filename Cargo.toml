@@ -4,7 +4,8 @@ resolver = "2"
 members = [
   "rain-dock",
   "rain-appd",
-  "rain-shell"
+  "rain-shell",
+  "rain-launcher"
 ]
 
 [workspace.dependencies]

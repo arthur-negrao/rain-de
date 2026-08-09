@@ -1,14 +1,14 @@
 use gtk::glib;
 use gtk::{Application, ApplicationWindow, Orientation, Revealer, prelude::*};
+use gtk4_layer_shell::Edge::Bottom;
 use tracing::error;
 
 use rain_client::appd::entry::connect_to_appd;
 use rain_client::wayland::Bridge;
+use rain_utils::ui::layer_shell::LayerShellConfig;
 
-use crate::{
-    state::manager::DockState,
-    ui::{css_loader::load_css, factory::build_buckets_view, layer_shell::apply_layer_shell},
-};
+use crate::state::manager::DockState;
+use crate::ui::{css_loader::load_css, factory::build_buckets_view};
 
 pub struct Dock {
     state: DockState,
@@ -141,7 +141,7 @@ pub fn build_dock(app: &Application, bridge: Bridge) {
         _ => {}
     };
 
-    apply_layer_shell(&window);
+    LayerShellConfig::new().anchor(Bottom, true).apply(&window);
 
     dock.attach_auto_hide_controller(&main_box);
 

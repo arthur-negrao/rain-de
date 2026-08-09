@@ -1044,6 +1044,7 @@ dependencies = [
  "gtk4",
  "gtk4-layer-shell",
  "rain-client",
+ "rain-utils",
  "serde",
  "serde_json",
  "tracing",
@@ -1051,6 +1052,15 @@ dependencies = [
  "wayland-client",
  "wayland-protocols-wlr",
  "zbus",
+]
+
+[[package]]
+name = "rain-launcher"
+version = "0.1.0"
+dependencies = [
+ "gtk4",
+ "rain-client",
+ "rain-utils",
 ]
 
 [[package]]
@@ -1071,6 +1081,8 @@ dependencies = [
 name = "rain-utils"
 version = "0.1.0"
 dependencies = [
+ "gtk4",
+ "gtk4-layer-shell",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
