@@ -3,8 +3,10 @@ use std::{
     process::{Command as STDCommand, Stdio},
 };
 
-use freedesktop_desktop_entry::DesktopEntry;
+#[cfg(feature = "gtk")]
 use gtk::glib;
+
+use freedesktop_desktop_entry::DesktopEntry;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command as TokioCommand;
 use tracing::{error, info, warn};
@@ -167,6 +169,7 @@ impl AppEntryDTO {
         });
     }
 
+    #[cfg(feature = "gtk")]
     pub fn launch_with_gtk(&self) {
         let cmd_string = self.get_sanitize_exec_cmd();
         let name = self.name.clone();

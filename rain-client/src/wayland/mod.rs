@@ -5,8 +5,9 @@ pub mod event;
 pub mod modules;
 pub mod protocol;
 pub mod runner;
-pub mod wayland_source;
+pub(crate) mod wayland_source;
 
-pub use bridge::Bridge;
+pub use bridge::{Bridge, BridgeBuilder};
 pub use command::Command;
 pub use event::Event;
+pub use runner::Runner;

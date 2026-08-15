@@ -4,16 +4,26 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gtk = { workspace = true }
-zbus = { workspace = true }
-serde = { workspace = true }
-freedesktop-desktop-entry = { workspace = true }
-tokio = { workspace = true }
+gtk = { workspace = true, optional = true }
+zbus = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+freedesktop-desktop-entry = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
 
 tracing = { workspace = true }
 
-kanal = { workspace = true }
+kanal = { workspace = true, optional = true }
 
-calloop = { workspace = true }
-wayland-client = { workspace = true }
-wayland-protocols-wlr = { workspace = true }
+calloop = { workspace = true, optional = true }
+wayland-client = { workspace = true, optional = true }
+wayland-protocols-wlr = { workspace = true, optional = true }
+
+[features]
+default = []
+
+gtk = ["dep:gtk"]
+tokio = ["dep:tokio"]
+ipc = ["dep:freedesktop-desktop-entry", "dep:zbus", "dep:serde", "tokio"]
+wayland = ["dep:wayland-client", "dep:wayland-protocols-wlr", "dep:calloop", "dep:kanal"]
+
+full = ["gtk", "tokio", "wayland", "ipc"]
