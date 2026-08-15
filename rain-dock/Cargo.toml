@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-rain-client = { workspace = true }
+rain-client = { workspace = true, features = ["full"] }
 rain-utils = { workspace = true }
 
 calloop = { workspace = true }

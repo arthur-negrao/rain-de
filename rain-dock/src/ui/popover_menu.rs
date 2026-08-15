@@ -3,7 +3,7 @@ use gtk::glib::{self};
 use gtk::prelude::*;
 use tracing::{debug, info, warn};
 
-use rain_client::wayland::protocols::toplevel::ToplevelCommand;
+use rain_client::wayland::modules::toplevel::ToplevelCommand;
 
 use crate::state::{bucket::DockBucket, manager::DockState};
 

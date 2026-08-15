@@ -7,7 +7,7 @@ use gtk::{ListItem, SignalListItemFactory};
 
 use tracing::debug;
 
-use rain_client::wayland::protocols::toplevel::ToplevelCommand;
+use rain_client::wayland::modules::toplevel::ToplevelCommand;
 
 use crate::state::bucket::DockBucket;
 use crate::state::manager::DockState;

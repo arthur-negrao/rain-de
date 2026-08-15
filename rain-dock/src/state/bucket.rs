@@ -6,7 +6,7 @@ use gtk::glib;
 use gtk::glib::subclass::prelude::*;
 use gtk::prelude::*;
 
-use rain_client::wayland::protocols::toplevel::WindowState;
+use rain_client::wayland::modules::toplevel::WindowState;
 
 use super::dock_app::DockApp;
 

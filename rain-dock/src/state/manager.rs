@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use rain_client::appd::entry::AppdProxy;
 use rain_client::dto::AppEntryDTO;
 use rain_client::wayland::Bridge;
-use rain_client::wayland::protocols::toplevel::{
+use rain_client::wayland::modules::toplevel::{
     ToplevelCommand, ToplevelEvent, WindowData, WindowState,
 };
 use tracing::{debug, error, info, warn};
