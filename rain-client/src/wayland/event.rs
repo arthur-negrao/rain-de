@@ -1,4 +1,4 @@
-use super::protocols::toplevel::event::ToplevelEvent;
+use super::modules::toplevel::event::ToplevelEvent;
 
 #[derive(Debug)]
 pub enum Event {

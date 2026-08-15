@@ -10,7 +10,7 @@ pub enum EventType {
 }
 
 #[derive(Debug, Default)]
-pub struct ToplevelPendingEvent {
+pub struct ToplevelPendingWindow {
     pub event_type: EventType,
     pub app_id: Option<String>,
     pub app_title: Option<String>,
