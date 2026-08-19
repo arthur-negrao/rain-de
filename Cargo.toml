@@ -34,6 +34,8 @@ kanal = { version = "0.1" }
 wayland-client = "0.31"
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 
+divan = { version = "0.1" }
+
 [profile.release]
 opt-level = "s"
 lto = true
