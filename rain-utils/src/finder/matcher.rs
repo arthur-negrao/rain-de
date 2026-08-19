@@ -11,6 +11,13 @@ const BONUS_CAMEL_123: i32 = 7;
 const BONUS_CONSECUTIVE: i32 = 4;
 const BONUS_FIRST_CHAR_MULTIPLIER: i32 = 2;
 
+/// A backend to perform searches and calculate text similarity scores.
+///
+/// This struct implements an FZF-like algorithm. It reuses internal buffers
+/// across multiple search queries to avoid memory reallocations.
+///
+/// Use [`Matcher::match_score`] to execute the algorithm and obtain an [`i32`]
+/// representing the text similarity score.
 #[derive(Debug, Default)]
 pub struct Matcher {
     cost_table: Vec<i32>,
@@ -25,21 +32,37 @@ impl Matcher {
         Self::default()
     }
 
-    fn calculate_score_context(&mut self, text: &str, init_byte: usize, finish_byte: usize) {
+    /// Calculates the context bonus for each character in the bounded text.
+    ///
+    /// The FZF algorithm uses the preceding character to calculate a positional
+    /// bonus for the current character. This method populates the `char_buffer`
+    /// with the sliced text and calculates the corresponding scores into
+    /// `bonus_per_letter`.
+    fn calculate_score_context(
+        &mut self,
+        text: &str,
+        init_byte: usize,
+        finish_byte: usize,
+    ) {
         self.char_buffer.clear();
         let mut first_char = ' ';
 
         if init_byte == 0 {
-            self.char_buffer.extend(text[..finish_byte].chars());
+            self.char_buffer
+                .extend(text[..finish_byte].chars());
         } else {
-            first_char = text[..init_byte].chars().next_back().unwrap_or(' ');
+            first_char = text[..init_byte]
+                .chars()
+                .next_back()
+                .unwrap_or(' ');
 
             self.char_buffer
                 .extend(text[init_byte..finish_byte].chars());
         }
 
         self.bonus_per_letter.clear();
-        self.bonus_per_letter.reserve((finish_byte - init_byte) + 1);
+        self.bonus_per_letter
+            .reserve((finish_byte - init_byte) + 1);
 
         if let Some(&first_interval_letter) = self.char_buffer.first() {
             self.bonus_per_letter
@@ -50,15 +73,36 @@ impl Matcher {
             self.bonus_per_letter
                 .push(get_context_bonus(pair[0], pair[1]));
         }
-    }
 
-    fn sanitize_char_buffer(&mut self) {
+        // sanitize the buffer
         for c in self.char_buffer.iter_mut() {
             *c = remove_accent(*c);
         }
     }
 
-    /// Calculates the `text` score by the `pattern_chars` similarity.
+    /// Calculates the similarity score of `text` against `pattern_chars`.
+    ///
+    /// # Performance
+    ///
+    /// For optimal performance, set the `is_ascii` flag to `true` if both the
+    /// `pattern` and the `text` are purely ASCII. Set it to `false` for UTF-8
+    /// strings.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rain_utils::finder::matcher::Matcher;
+    ///
+    /// let text = "Hello, world!";
+    /// let pattern = vec!['h', 'w'];
+    /// let pattern_bytes: Vec<u8> = pattern
+    ///     .iter()
+    ///     .map(|c| c.to_ascii_lowercase() as u8)
+    ///     .collect();
+    ///
+    /// let mut matcher = Matcher::new();
+    /// let score = matcher.match_score(text, &pattern, &pattern_bytes, true);
+    /// ```
     pub fn match_score(
         &mut self,
         text: &str,
@@ -74,8 +118,6 @@ impl Matcher {
 
         self.calculate_score_context(text, min_idx, max_idx);
 
-        self.sanitize_char_buffer();
-
         let text_chars = &self.char_buffer;
 
         // add more row and column to keep a initial state 0
@@ -89,7 +131,8 @@ impl Matcher {
             let pattern_char = pattern_chars[pattern_idx];
             let row = pattern_idx + 1;
 
-            let max_text_idx_viable = text_chars.len() - (pattern_chars.len() - pattern_idx);
+            let max_text_idx_viable =
+                text_chars.len() - (pattern_chars.len() - pattern_idx);
 
             for text_idx in pattern_idx..=max_text_idx_viable {
                 let text_char = text_chars[text_idx];
@@ -97,7 +140,8 @@ impl Matcher {
 
                 let mut bonus = 0;
                 let is_match = text_char == pattern_char;
-                let mut consecutive = self.consecutive_table[(row - 1) * width + (column - 1)];
+                let mut consecutive =
+                    self.consecutive_table[(row - 1) * width + (column - 1)];
 
                 if is_match {
                     consecutive += 1;
@@ -108,10 +152,13 @@ impl Matcher {
 
                     if consecutive > 1 {
                         consecutive_bonus = BONUS_CONSECUTIVE;
-                        head_bonus = self.bonus_per_letter[text_idx - (consecutive as usize - 1)];
+                        head_bonus = self.bonus_per_letter
+                            [text_idx - (consecutive as usize - 1)];
                     }
 
-                    bonus = letter_bonus.max(consecutive_bonus).max(head_bonus);
+                    bonus = letter_bonus
+                        .max(consecutive_bonus)
+                        .max(head_bonus);
 
                     if pattern_idx == 0 {
                         if pattern_char == self.char_buffer[0] {
@@ -123,7 +170,8 @@ impl Matcher {
                     consecutive = 0;
                 }
 
-                let diag_score = self.cost_table[(row - 1) * width + column - 1];
+                let diag_score =
+                    self.cost_table[(row - 1) * width + column - 1];
 
                 let s1 = if is_match { diag_score + bonus } else { 0 };
 
@@ -136,7 +184,8 @@ impl Matcher {
                     0
                 };
 
-                let left_is_a_match = self.consecutive_table[row * width + column - 1] > 0;
+                let left_is_a_match =
+                    self.consecutive_table[row * width + column - 1] > 0;
 
                 let s2 = if left_is_a_match {
                     left_score + SCORE_GAP_START
@@ -179,7 +228,8 @@ impl Matcher {
         let mut rank = Vec::with_capacity(texts.len());
 
         for (text, id) in texts {
-            let score = self.match_score(text, pattern_chars, pattern_bytes, is_ascii);
+            let score =
+                self.match_score(text, pattern_chars, pattern_bytes, is_ascii);
             rank.push(Match::new(*id, score));
         }
 
@@ -204,7 +254,12 @@ impl Matcher {
             .map(|(text, id)| {
                 Match::new(
                     *id,
-                    self.match_score(text, pattern_chars, pattern_bytes, is_ascii),
+                    self.match_score(
+                        text,
+                        pattern_chars,
+                        pattern_bytes,
+                        is_ascii,
+                    ),
                 )
             })
             .collect();
@@ -216,6 +271,36 @@ impl Matcher {
 }
 
 /// Calculates the bounds to find the match more efficiently.
+///
+/// The bounds are represents by a tuple with two [`usize`] when the first
+/// is the min byte index (inclusive) and the second is the last byte index
+/// (exclusive).
+///
+/// If the text are impossible to match like: The pattern does not fit; the
+/// pattern chars are not in `text`, and so on... Then the bounds are
+/// impossibles and returns a `None`.
+///
+/// # Examples
+///
+/// To use the indices with the `&str` just use:
+///
+/// ```rust,ignore
+/// let text = "Hello, world!";
+/// let pattern_chars = vec!['h', 'w'];
+/// let pattern_bytes: Vec<u8> = pattern_chars
+///     .iter()
+///     .map(|c| c.to_ascii_lowercase() as u8)
+///     .collect();
+///
+/// let (min, max) = find_viable_bounds(
+///     text,
+///     &pattern_chars,
+///     &pattern_bytes,
+///     true
+/// ).unwrap();
+///
+/// let text_viable = &text[min..max];
+/// ```
 #[inline]
 fn find_viable_bounds(
     text: &str,
@@ -235,7 +320,10 @@ fn find_viable_bounds(
     find_viable_bounds_utf8(text, pattern_chars)
 }
 
-fn find_viable_bounds_ascii(text_bytes: &[u8], pattern_bytes: &[u8]) -> Option<(usize, usize)> {
+fn find_viable_bounds_ascii(
+    text_bytes: &[u8],
+    pattern_bytes: &[u8],
+) -> Option<(usize, usize)> {
     let &pattern_first_byte = pattern_bytes.first()?;
     let &pattern_last_byte = pattern_bytes.last()?;
 
@@ -298,12 +386,16 @@ fn find_viable_bounds_ascii(text_bytes: &[u8], pattern_bytes: &[u8]) -> Option<(
         return None;
     }
 
+    // an ascii char has a 1 byte size
     let max_idx_exclusive = max_idx + 1;
 
     Some((min_idx, max_idx_exclusive))
 }
 
-fn find_viable_bounds_utf8(text: &str, pattern_chars: &[char]) -> Option<(usize, usize)> {
+fn find_viable_bounds_utf8(
+    text: &str,
+    pattern_chars: &[char],
+) -> Option<(usize, usize)> {
     let &pattern_first_char = pattern_chars.first()?;
     let &pattern_last_char = pattern_chars.last()?;
 
@@ -381,7 +473,9 @@ fn get_context_bonus(prev: char, current: char) -> i32 {
                 || (prev.is_alphabetic() && current.is_numeric())
             {
                 BONUS_CAMEL_123
-            } else if !prev.is_ascii_alphanumeric() && current.is_ascii_alphanumeric() {
+            } else if !prev.is_ascii_alphanumeric()
+                && current.is_ascii_alphanumeric()
+            {
                 BONUS_BOUNDARY
             } else {
                 0
@@ -394,7 +488,10 @@ fn get_context_bonus(prev: char, current: char) -> i32 {
 mod tests {
     use super::*;
 
-    fn is_ascii_and_pattern_bytes(pattern: &[char], text: &str) -> (bool, Vec<u8>) {
+    fn is_ascii_and_pattern_bytes(
+        pattern: &[char],
+        text: &str,
+    ) -> (bool, Vec<u8>) {
         let is_ascii = text.is_ascii() && pattern.iter().all(|c| c.is_ascii());
         let pattern_bytes: Vec<u8> = pattern
             .iter()
@@ -409,9 +506,11 @@ mod tests {
         let mut matcher = Matcher::new();
         let text = "src/app.rs";
         let pattern: Vec<char> = "app".chars().collect();
-        let (is_ascii, pattern_bytes) = is_ascii_and_pattern_bytes(&pattern, &text);
+        let (is_ascii, pattern_bytes) =
+            is_ascii_and_pattern_bytes(&pattern, &text);
 
-        let score = matcher.match_score(text, &pattern, &pattern_bytes, is_ascii);
+        let score =
+            matcher.match_score(text, &pattern, &pattern_bytes, is_ascii);
         assert!(score > 0, "Must find the ASCII substring.");
     }
 
@@ -420,9 +519,11 @@ mod tests {
         let mut matcher = Matcher::new();
         let text = "ui/Match_Ação.rs";
         let pattern: Vec<char> = "açao".chars().map(remove_accent).collect();
-        let (is_ascii, pattern_bytes) = is_ascii_and_pattern_bytes(&pattern, &text);
+        let (is_ascii, pattern_bytes) =
+            is_ascii_and_pattern_bytes(&pattern, &text);
 
-        let score = matcher.match_score(text, &pattern, &pattern_bytes, is_ascii);
+        let score =
+            matcher.match_score(text, &pattern, &pattern_bytes, is_ascii);
         assert!(score > 0, "Must decode UTF-8 and find 'Ação' with 'açao'.");
     }
 
@@ -431,9 +532,11 @@ mod tests {
         let mut matcher = Matcher::new();
         let text = "usr/lib/waybar/config.json";
         let pattern: Vec<char> = "zsh".chars().collect();
-        let (is_ascii, pattern_bytes) = is_ascii_and_pattern_bytes(&pattern, &text);
+        let (is_ascii, pattern_bytes) =
+            is_ascii_and_pattern_bytes(&pattern, &text);
 
-        let score = matcher.match_score(text, &pattern, &pattern_bytes, is_ascii);
+        let score =
+            matcher.match_score(text, &pattern, &pattern_bytes, is_ascii);
         assert_eq!(
             score, 0,
             "Must return 0 instantly if the substring does not exist."
@@ -447,13 +550,17 @@ mod tests {
 
         // post the slash (limiter)
         let text_1 = "src/file_manager.rs";
-        let (is_ascii_1, pattern_bytes_1) = is_ascii_and_pattern_bytes(&pattern, text_1);
-        let score_good = matcher.match_score(text_1, &pattern, &pattern_bytes_1, is_ascii_1);
+        let (is_ascii_1, pattern_bytes_1) =
+            is_ascii_and_pattern_bytes(&pattern, text_1);
+        let score_good =
+            matcher.match_score(text_1, &pattern, &pattern_bytes_1, is_ascii_1);
 
         // in middle of string
         let text_2 = "src/profile.rs";
-        let (is_ascii_2, pattern_bytes_2) = is_ascii_and_pattern_bytes(&pattern, text_2);
-        let score_bad = matcher.match_score(text_2, &pattern, &pattern_bytes_2, is_ascii_2);
+        let (is_ascii_2, pattern_bytes_2) =
+            is_ascii_and_pattern_bytes(&pattern, text_2);
+        let score_bad =
+            matcher.match_score(text_2, &pattern, &pattern_bytes_2, is_ascii_2);
 
         assert!(
             score_good > score_bad,
