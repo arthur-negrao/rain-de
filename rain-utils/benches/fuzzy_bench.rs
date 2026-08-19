@@ -55,7 +55,8 @@ fn generate_massive_dataset() -> Vec<String> {
             for proj in projects.iter() {
                 for file in files.iter() {
                     // gen deepth paths
-                    let path = format!("{}{}/module_{}/src/{}", dir, proj, i, file);
+                    let path =
+                        format!("{}{}/module_{}/src/{}", dir, proj, i, file);
                     dataset.push(path);
                 }
             }
@@ -266,15 +267,21 @@ mod async_engine {
             let dataset = get_dataset_arc();
 
             bencher
-                .with_inputs(|| Runner::new(dataset.clone(), 8).expect("Engine init failed"))
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
                 .bench_refs(|runner| {
                     let dispatcher = runner.dispatcher();
 
                     let pattern1 = "rai";
-                    let result1 = dispatcher.submit_blocking(pattern1, false).unwrap();
+                    let result1 = dispatcher
+                        .submit_blocking(pattern1, false)
+                        .unwrap();
 
                     let pattern2 = "rain";
-                    let result2 = dispatcher.submit_blocking(pattern2, false).unwrap();
+                    let result2 = dispatcher
+                        .submit_blocking(pattern2, false)
+                        .unwrap();
 
                     black_box((result1, result2));
                 });
@@ -285,15 +292,21 @@ mod async_engine {
             let dataset = get_dataset_arc();
 
             bencher
-                .with_inputs(|| Runner::new(dataset.clone(), 8).expect("Engine init failed"))
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
                 .bench_refs(|runner| {
                     let dispatcher = runner.dispatcher();
 
                     let pattern1 = "xy";
-                    let result1 = dispatcher.submit_blocking(pattern1, false).unwrap();
+                    let result1 = dispatcher
+                        .submit_blocking(pattern1, false)
+                        .unwrap();
 
                     let pattern2 = "xyz";
-                    let result2 = dispatcher.submit_blocking(pattern2, false).unwrap();
+                    let result2 = dispatcher
+                        .submit_blocking(pattern2, false)
+                        .unwrap();
 
                     black_box((result1, result2));
                 });
@@ -304,15 +317,21 @@ mod async_engine {
             let dataset = get_dataset_arc();
 
             bencher
-                .with_inputs(|| Runner::new(dataset.clone(), 8).expect("Engine init failed"))
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
                 .bench_refs(|runner| {
                     let dispatcher = runner.dispatcher();
 
                     let pattern1 = "rain";
-                    let result1 = dispatcher.submit_blocking(pattern1, false).unwrap();
+                    let result1 = dispatcher
+                        .submit_blocking(pattern1, false)
+                        .unwrap();
 
                     let pattern2 = "rai";
-                    let result2 = dispatcher.submit_blocking(pattern2, false).unwrap();
+                    let result2 = dispatcher
+                        .submit_blocking(pattern2, false)
+                        .unwrap();
 
                     black_box((result1, result2));
                 });
@@ -323,15 +342,21 @@ mod async_engine {
             let dataset = get_dataset_arc();
 
             bencher
-                .with_inputs(|| Runner::new(dataset.clone(), 8).expect("Engine init failed"))
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
                 .bench_refs(|runner| {
                     let dispatcher = runner.dispatcher();
 
                     let pattern1 = "xyz";
-                    let result1 = dispatcher.submit_blocking(pattern1, false).unwrap();
+                    let result1 = dispatcher
+                        .submit_blocking(pattern1, false)
+                        .unwrap();
 
                     let pattern2 = "xy";
-                    let result2 = dispatcher.submit_blocking(pattern2, false).unwrap();
+                    let result2 = dispatcher
+                        .submit_blocking(pattern2, false)
+                        .unwrap();
 
                     black_box((result1, result2));
                 });
@@ -354,16 +379,20 @@ mod async_engine {
             let _guard = rt.enter();
 
             bencher
-                .with_inputs(|| Runner::new(dataset.clone(), 8).expect("Engine init failed"))
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
                 .bench_refs(|runner| {
                     let dispatcher = runner.dispatcher();
 
                     rt.block_on(async {
                         let pattern1 = "rai";
-                        let result1 = dispatcher.submit(pattern1, false).await.unwrap();
+                        let result1 =
+                            dispatcher.submit(pattern1, false).await.unwrap();
 
                         let pattern2 = "rain";
-                        let result2 = dispatcher.submit(pattern2, false).await.unwrap();
+                        let result2 =
+                            dispatcher.submit(pattern2, false).await.unwrap();
 
                         black_box((result1, result2));
                     });
@@ -382,16 +411,20 @@ mod async_engine {
             let _guard = rt.enter();
 
             bencher
-                .with_inputs(|| Runner::new(dataset.clone(), 8).expect("Engine init failed"))
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
                 .bench_refs(|runner| {
                     let dispatcher = runner.dispatcher();
 
                     rt.block_on(async {
                         let pattern1 = "xy";
-                        let result1 = dispatcher.submit(pattern1, false).await.unwrap();
+                        let result1 =
+                            dispatcher.submit(pattern1, false).await.unwrap();
 
                         let pattern2 = "xyz";
-                        let result2 = dispatcher.submit(pattern2, false).await.unwrap();
+                        let result2 =
+                            dispatcher.submit(pattern2, false).await.unwrap();
 
                         black_box((result1, result2));
                     });
@@ -410,16 +443,20 @@ mod async_engine {
             let _guard = rt.enter();
 
             bencher
-                .with_inputs(|| Runner::new(dataset.clone(), 8).expect("Engine init failed"))
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
                 .bench_refs(|runner| {
                     let dispatcher = runner.dispatcher();
 
                     rt.block_on(async {
                         let pattern1 = "rain";
-                        let result1 = dispatcher.submit(pattern1, false).await.unwrap();
+                        let result1 =
+                            dispatcher.submit(pattern1, false).await.unwrap();
 
                         let pattern2 = "rai";
-                        let result2 = dispatcher.submit(pattern2, false).await.unwrap();
+                        let result2 =
+                            dispatcher.submit(pattern2, false).await.unwrap();
 
                         black_box((result1, result2));
                     });
@@ -438,16 +475,20 @@ mod async_engine {
             let _guard = rt.enter();
 
             bencher
-                .with_inputs(|| Runner::new(dataset.clone(), 8).expect("Engine init failed"))
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
                 .bench_refs(|runner| {
                     let dispatcher = runner.dispatcher();
 
                     rt.block_on(async {
                         let pattern1 = "xyz";
-                        let result1 = dispatcher.submit(pattern1, false).await.unwrap();
+                        let result1 =
+                            dispatcher.submit(pattern1, false).await.unwrap();
 
                         let pattern2 = "xy";
-                        let result2 = dispatcher.submit(pattern2, false).await.unwrap();
+                        let result2 =
+                            dispatcher.submit(pattern2, false).await.unwrap();
 
                         black_box((result1, result2));
                     });

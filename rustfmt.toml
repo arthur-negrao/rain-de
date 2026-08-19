@@ -1,0 +1,58 @@
+# === GENERAL === #
+max_width = 80
+
+comment_width = 80
+
+chain_width = 50
+
+hard_tabs = false
+
+tab_spaces = 4
+
+indent_style = "Block"
+
+newline_style = "Unix"
+
+use_try_shorthand = false
+
+wrap_comments = true
+
+# === BRACES === #
+
+brace_style = "SameLineWhere"
+
+control_brace_style = "AlwaysSameLine"
+
+# === FUNCTIONS === #
+
+fn_single_line = false
+
+fn_args_layout = "Tall"
+
+fn_call_width = 60
+
+fn_params_layout = "Tall"
+
+# === BLOCKS === #
+
+force_multiline_blocks = false
+
+empty_item_single_line = true
+
+doc_comment_code_block_width = 80
+
+format_macro_matchers = true
+
+format_macro_bodies = true
+
+# === IMPORTS === #
+
+imports_indent = "Block"
+
+group_imports = "StdExternalCrate"
+
+imports_layout = "HorizontalVertical"
+
+imports_granularity = "Module"
+
+reorder_imports = true
