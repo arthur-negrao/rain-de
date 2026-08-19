@@ -59,6 +59,12 @@ impl Ord for Match {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub(crate) struct ScoreCell {
+    pub score: i32,
+    pub consecutives: i32,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct SearchTask {
     /// The pattern to be sent to each worker. It is a Arc to avoid heap

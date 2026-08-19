@@ -1,5 +1,5 @@
 use super::sanitize::remove_accent;
-use super::types::Match;
+use super::types::{Match, ScoreCell};
 
 const SCORE_MATCH: i32 = 16;
 const SCORE_GAP_START: i32 = -3;
@@ -20,8 +20,8 @@ const BONUS_FIRST_CHAR_MULTIPLIER: i32 = 2;
 /// representing the text similarity score.
 #[derive(Debug, Default)]
 pub struct Matcher {
-    cost_table: Vec<i32>,
-    consecutive_table: Vec<i32>,
+    prev_row: Vec<ScoreCell>,
+    current_row: Vec<ScoreCell>,
     bonus_per_letter: Vec<i32>,
     char_buffer: Vec<char>,
 }
@@ -122,14 +122,16 @@ impl Matcher {
 
         // add more row and column to keep a initial state 0
         let width = text_chars.len() + 1;
-        let height = pattern_chars.len() + 1;
 
-        self.cost_table.resize(width * height, 0);
-        self.consecutive_table.resize(width * height, 0);
+        self.prev_row.resize(width, ScoreCell::default());
+        self.current_row
+            .resize(width, ScoreCell::default());
+
+        self.prev_row.fill(ScoreCell::default());
+        self.current_row.fill(ScoreCell::default());
 
         for pattern_idx in 0..pattern_chars.len() {
             let pattern_char = pattern_chars[pattern_idx];
-            let row = pattern_idx + 1;
 
             let max_text_idx_viable =
                 text_chars.len() - (pattern_chars.len() - pattern_idx);
@@ -140,8 +142,7 @@ impl Matcher {
 
                 let mut bonus = 0;
                 let is_match = text_char == pattern_char;
-                let mut consecutive =
-                    self.consecutive_table[(row - 1) * width + (column - 1)];
+                let mut consecutive = self.prev_row[column - 1].consecutives;
 
                 if is_match {
                     consecutive += 1;
@@ -170,22 +171,21 @@ impl Matcher {
                     consecutive = 0;
                 }
 
-                let diag_score =
-                    self.cost_table[(row - 1) * width + column - 1];
+                let diag_score = self.prev_row[column - 1].score;
 
                 let s1 = if is_match { diag_score + bonus } else { 0 };
 
                 // the row (pattern_idx - 1) can not be greater than the column
                 // (text_idx - 1)
-                let left_is_valid = pattern_idx <= (column - 1);
+                let left_is_valid = pattern_idx < text_idx;
                 let left_score = if left_is_valid {
-                    self.cost_table[row * width + column - 1]
+                    self.current_row[column - 1].score
                 } else {
                     0
                 };
 
                 let left_is_a_match =
-                    self.consecutive_table[row * width + column - 1] > 0;
+                    self.current_row[column - 1].consecutives > 0;
 
                 let s2 = if left_is_a_match {
                     left_score + SCORE_GAP_START
@@ -195,23 +195,26 @@ impl Matcher {
 
                 let best_cell = s1.max(s2).max(0);
 
-                self.cost_table[row * width + column] = best_cell;
-                self.consecutive_table[row * width + column] =
+                self.current_row[column].score = best_cell;
+
+                self.current_row[column].consecutives =
                     if is_match && best_cell == s1 && best_cell > 0 {
                         consecutive
                     } else {
                         0
                     };
             }
+
+            std::mem::swap(&mut self.current_row, &mut self.prev_row);
         }
 
-        let last_row = (height - 1) * width;
+        // let last_row = (height - 1) * width;
         let fist_valid_col = pattern_chars.len();
 
-        let match_score = self.cost_table[last_row + fist_valid_col..]
+        let match_score = self.prev_row[fist_valid_col..]
             .iter()
-            .max()
-            .copied()
+            .max_by_key(|v| v.score)
+            .map(|v| v.score)
             .unwrap_or(0);
 
         match_score
@@ -565,6 +568,40 @@ mod tests {
         assert!(
             score_good > score_bad,
             "FuzzyMatcher must prioritize characters after Boundary limiters."
+        );
+    }
+
+    #[test]
+    fn test_buffer_reuse_ghost_data_leak() {
+        let mut matcher = Matcher::new();
+
+        let pattern: Vec<char> = "core".chars().collect();
+        let (is_ascii, pattern_bytes) =
+            is_ascii_and_pattern_bytes(&pattern, "core");
+
+        // calculate the baseline score for a short string with a fresh matcher.
+        let text_short = "src/core.rs";
+        let score_baseline =
+            matcher.match_score(text_short, &pattern, &pattern_bytes, is_ascii);
+
+        // pollute the matcher's internal buffers with a very long string.
+        // This forces the `cost_table` or `current_row` to expand its capacity
+        // and leaves high scores in memory indices far beyond the short string's length.
+        let text_long = "src/modules/core_engine/utils/core_manager_core.rs";
+        let _score_long =
+            matcher.match_score(text_long, &pattern, &pattern_bytes, is_ascii);
+
+        // Re-evaluate the short string using the now polluted matcher.
+        // If `current_row` is not properly cleared, or if the left boundary check
+        // (text_idx > pattern_idx) fails, the algorithm will read ghost scores
+        // from the previous long evaluation, artificially inflating the final score.
+        let score_polluted =
+            matcher.match_score(text_short, &pattern, &pattern_bytes, is_ascii);
+
+        // The score must be perfectly identical to the baseline.
+        assert_eq!(
+            score_baseline, score_polluted,
+            "Ghost data leak detected! The score changed after reusing the buffer on a longer string."
         );
     }
 }
