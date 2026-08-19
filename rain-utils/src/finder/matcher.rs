@@ -25,52 +25,30 @@ impl Matcher {
         Self::default()
     }
 
-    fn calculate_score_context(&mut self, text: &str, init: usize, finish: usize) {
+    fn calculate_score_context(&mut self, text: &str, init_byte: usize, finish_byte: usize) {
         self.char_buffer.clear();
         let mut first_char = ' ';
 
-        if init == 0 {
-            self.char_buffer.extend(text.chars().take(finish + 1));
+        if init_byte == 0 {
+            self.char_buffer.extend(text[..finish_byte].chars());
         } else {
-            let mut iter = text.chars().skip(init - 1);
+            first_char = text[..init_byte].chars().next_back().unwrap_or(' ');
 
-            if let Some(c) = iter.next() {
-                first_char = c;
-            }
-
-            self.char_buffer.extend(iter.take((finish - init) + 1));
+            self.char_buffer
+                .extend(text[init_byte..finish_byte].chars());
         }
 
         self.bonus_per_letter.clear();
-        self.bonus_per_letter.reserve((finish - init) + 1);
-
-        // first match always get this bonus
-        //
-        let get_bonus = |prev: char, current: char| -> i32 {
-            match prev {
-                ' ' => BONUS_BOUNDARY_WHITE,
-                '-' | '/' | ':' | ';' | ',' => BONUS_BOUNDARY_DELIMITER,
-                _ => {
-                    if (prev.is_lowercase() && current.is_uppercase())
-                        || (prev.is_alphabetic() && current.is_numeric())
-                    {
-                        BONUS_CAMEL_123
-                    } else if !prev.is_ascii_alphanumeric() && current.is_ascii_alphanumeric() {
-                        BONUS_BOUNDARY
-                    } else {
-                        0
-                    }
-                }
-            }
-        };
+        self.bonus_per_letter.reserve((finish_byte - init_byte) + 1);
 
         if let Some(&first_interval_letter) = self.char_buffer.first() {
             self.bonus_per_letter
-                .push(get_bonus(first_char, first_interval_letter));
+                .push(get_context_bonus(first_char, first_interval_letter));
         }
 
         for pair in self.char_buffer.windows(2) {
-            self.bonus_per_letter.push(get_bonus(pair[0], pair[1]));
+            self.bonus_per_letter
+                .push(get_context_bonus(pair[0], pair[1]));
         }
     }
 
@@ -320,7 +298,9 @@ fn find_viable_bounds_ascii(text_bytes: &[u8], pattern_bytes: &[u8]) -> Option<(
         return None;
     }
 
-    Some((min_idx, max_idx))
+    let max_idx_exclusive = max_idx + 1;
+
+    Some((min_idx, max_idx_exclusive))
 }
 
 fn find_viable_bounds_utf8(text: &str, pattern_chars: &[char]) -> Option<(usize, usize)> {
@@ -329,56 +309,51 @@ fn find_viable_bounds_utf8(text: &str, pattern_chars: &[char]) -> Option<(usize,
 
     let mut min_idx_opt: Option<usize> = None;
     let mut max_idx_opt: Option<usize> = None;
+    let mut max_char_len = 0;
 
     let pattern_len = pattern_chars.len();
-    let text_len = text.chars().count();
 
     let mut pattern_idx: usize = 0;
 
     // find the min_idx
-    for (idx, letter) in text.chars().enumerate() {
+    for (byte_idx, letter) in text.char_indices() {
         let letter_clean = remove_accent(letter);
 
         if letter_clean == pattern_first_char {
-            min_idx_opt = Some(idx);
+            min_idx_opt = Some(byte_idx);
             break;
         }
     }
 
-    let min_idx = min_idx_opt?;
+    let min_byte_idx = min_idx_opt?;
 
     // find the max_idx
-    for (idx, letter) in text.chars().rev().enumerate() {
-        let real_idx = text_len - idx - 1;
-        if real_idx < min_idx {
+    for (byte_idx, letter) in text.char_indices().rev() {
+        if byte_idx < min_byte_idx {
             return None;
         }
 
         let letter_clean = remove_accent(letter);
 
         if letter_clean == pattern_last_char {
-            max_idx_opt = Some(real_idx);
+            max_idx_opt = Some(byte_idx);
+            max_char_len = letter.len_utf8(); // save the size in bytes
             break;
         }
     }
 
-    let max_idx = max_idx_opt?;
+    let max_byte_idx = max_idx_opt?;
 
     // the max_idx can not be greater than min_idx
-    if max_idx < min_idx {
+    if max_byte_idx < min_byte_idx {
         return None;
     }
 
+    let max_byte_exclusive = max_byte_idx + max_char_len;
+    let viable_slice = &text[min_byte_idx..max_byte_exclusive];
+
     // verify if has all pattern chars
-    for (idx, letter) in text.chars().enumerate() {
-        if idx < min_idx {
-            continue;
-        }
-
-        if idx > max_idx {
-            break;
-        }
-
+    for letter in viable_slice.chars() {
         let letter_clean = remove_accent(letter);
 
         if pattern_idx < pattern_len {
@@ -394,7 +369,25 @@ fn find_viable_bounds_utf8(text: &str, pattern_chars: &[char]) -> Option<(usize,
         return None;
     }
 
-    Some((min_idx, max_idx))
+    Some((min_byte_idx, max_byte_exclusive))
+}
+
+fn get_context_bonus(prev: char, current: char) -> i32 {
+    match prev {
+        ' ' => BONUS_BOUNDARY_WHITE,
+        '-' | '/' | ':' | ';' | ',' => BONUS_BOUNDARY_DELIMITER,
+        _ => {
+            if (prev.is_lowercase() && current.is_uppercase())
+                || (prev.is_alphabetic() && current.is_numeric())
+            {
+                BONUS_CAMEL_123
+            } else if !prev.is_ascii_alphanumeric() && current.is_ascii_alphanumeric() {
+                BONUS_BOUNDARY
+            } else {
+                0
+            }
+        }
+    }
 }
 
 #[cfg(test)]
