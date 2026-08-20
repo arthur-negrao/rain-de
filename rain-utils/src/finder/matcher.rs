@@ -128,13 +128,15 @@ impl Matcher {
             .resize(width, ScoreCell::default());
 
         self.prev_row.fill(ScoreCell::default());
-        self.current_row.fill(ScoreCell::default());
 
         for pattern_idx in 0..pattern_chars.len() {
             let pattern_char = pattern_chars[pattern_idx];
 
             let max_text_idx_viable =
                 text_chars.len() - (pattern_chars.len() - pattern_idx);
+
+            // avoid old data on left neighbor (column - 1)
+            self.current_row[pattern_idx] = ScoreCell::default();
 
             for text_idx in pattern_idx..=max_text_idx_viable {
                 let text_char = text_chars[text_idx];
@@ -175,14 +177,7 @@ impl Matcher {
 
                 let s1 = if is_match { diag_score + bonus } else { 0 };
 
-                // the row (pattern_idx - 1) can not be greater than the column
-                // (text_idx - 1)
-                let left_is_valid = pattern_idx < text_idx;
-                let left_score = if left_is_valid {
-                    self.current_row[column - 1].score
-                } else {
-                    0
-                };
+                let left_score = self.current_row[column - 1].score;
 
                 let left_is_a_match =
                     self.current_row[column - 1].consecutives > 0;

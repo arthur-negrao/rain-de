@@ -150,6 +150,34 @@ mod sync_engine {
     use super::*;
 
     #[divan::bench]
+    fn one_shot_rare(bencher: Bencher) {
+        let refs: Vec<(&str, usize)> = get_refs();
+
+        bencher
+            .with_inputs(|| Engine::new(black_box(&refs)))
+            .bench_refs(|engine| {
+                let pattern = "xyz";
+                let results = engine.search(black_box(pattern), false);
+
+                black_box(results);
+            });
+    }
+
+    #[divan::bench]
+    fn one_shot_common(bencher: Bencher) {
+        let refs: Vec<(&str, usize)> = get_refs();
+
+        bencher
+            .with_inputs(|| Engine::new(black_box(&refs)))
+            .bench_refs(|engine| {
+                let pattern = "rain";
+                let results = engine.search(black_box(pattern), false);
+
+                black_box(results);
+            });
+    }
+
+    #[divan::bench]
     fn cache_hit(bencher: Bencher) {
         let refs: Vec<(&str, usize)> = get_refs();
 
@@ -218,18 +246,6 @@ mod sync_engine {
     }
 
     #[divan::bench]
-    fn worst_case_heavy_evaluation(bencher: Bencher) {
-        let refs = get_refs();
-
-        bencher
-            .with_inputs(|| Engine::new(&refs))
-            .bench_refs(|engine| {
-                let results = engine.search(black_box("module_999"), false);
-                black_box(results);
-            });
-    }
-
-    #[divan::bench]
     fn unicode_utf8_path(bencher: Bencher) {
         let refs = get_refs();
 
@@ -261,6 +277,45 @@ mod async_engine {
     #[cfg(not(feature = "tokio"))]
     mod blocking {
         use super::*;
+
+        #[divan::bench]
+        fn one_shot_common(bencher: Bencher) {
+            let dataset = get_dataset_arc();
+
+            bencher
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
+                .bench_refs(|runner| {
+                    let dispatcher = runner.dispatcher();
+
+                    let pattern = "rain";
+                    let result = dispatcher
+                        .submit_blocking(pattern, false)
+                        .unwrap();
+
+                    black_box(result);
+                });
+        }
+
+        #[divan::bench]
+        fn one_shot_rare(bencher: Bencher) {
+            let dataset = get_dataset_arc();
+
+            bencher
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
+                .bench_refs(|runner| {
+                    let dispatcher = runner.dispatcher();
+
+                    let pattern = "xyz";
+                    let result = dispatcher
+                        .submit_blocking(pattern, false)
+                        .unwrap();
+                    black_box(result);
+                });
+        }
 
         #[divan::bench]
         fn cache_hit_common(bencher: Bencher) {
@@ -366,6 +421,62 @@ mod async_engine {
     #[cfg(feature = "tokio")]
     mod tokio_runtime {
         use super::*;
+
+        #[divan::bench]
+        fn one_shot_common(bencher: Bencher) {
+            let dataset = get_dataset_arc();
+
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("Fail to init Tokio runtime.");
+
+            let _guard = rt.enter();
+
+            bencher
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
+                .bench_refs(|runner| {
+                    let dispatcher = runner.dispatcher();
+
+                    rt.block_on(async {
+                        let pattern = "rain";
+                        let result =
+                            dispatcher.submit(pattern, false).await.unwrap();
+
+                        black_box(result);
+                    });
+                });
+        }
+
+        #[divan::bench]
+        fn one_shot_rare(bencher: Bencher) {
+            let dataset = get_dataset_arc();
+
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("Fail to init Tokio runtime.");
+
+            let _guard = rt.enter();
+
+            bencher
+                .with_inputs(|| {
+                    Runner::new(dataset.clone(), 8).expect("Engine init failed")
+                })
+                .bench_refs(|runner| {
+                    let dispatcher = runner.dispatcher();
+
+                    rt.block_on(async {
+                        let pattern = "xyz";
+                        let result =
+                            dispatcher.submit(pattern, false).await.unwrap();
+
+                        black_box(result);
+                    });
+                });
+        }
 
         #[divan::bench]
         fn cache_hit_common(bencher: Bencher) {
