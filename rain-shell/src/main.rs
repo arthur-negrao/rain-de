@@ -5,7 +5,7 @@ use gtk::{
 
 use tracing::error;
 
-use rain_client::wayland::Bridge;
+use rain_client::wayland::BridgeBuilder;
 use rain_dock::ui::bar::build_dock;
 use rain_utils::log::telemetry::init_telemetry;
 
@@ -24,15 +24,21 @@ fn main() -> gtk::glib::ExitCode {
         .application_id(APPLICATION_NAME)
         .build();
 
-    match Bridge::new() {
-        Ok(bridge) => {
+    let bridge_result = BridgeBuilder::new().enable_toplevel().build();
+
+    // keeps the runner alive
+    let _runner_guard = match bridge_result {
+        Ok((bridge, _runner)) => {
             app.connect_activate(move |app| build_dock(app, bridge.clone()));
+
+            Some(_runner)
         }
         Err(e) => {
             error!(
-                "Fail to run Dock. The Wayland Bridge already is started. Can not start it again: {}",
+                "Fail to run Dock. The Wayland Bridge failed to init: {}",
                 e
             );
+            None
         }
     };
 
