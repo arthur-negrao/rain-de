@@ -120,7 +120,7 @@ impl Matcher {
 
         let text_chars = &self.char_buffer;
 
-        // add more row and column to keep a initial state 0
+        // add 1 to row to keep a initial state 0
         let width = text_chars.len() + 1;
 
         self.prev_row.resize(width, ScoreCell::default());
@@ -137,6 +137,8 @@ impl Matcher {
 
             // avoid old data on left neighbor (column - 1)
             self.current_row[pattern_idx] = ScoreCell::default();
+
+            let is_first_pattern_char = pattern_idx == 0;
 
             for text_idx in pattern_idx..=max_text_idx_viable {
                 let text_char = text_chars[text_idx];
@@ -163,11 +165,13 @@ impl Matcher {
                         .max(consecutive_bonus)
                         .max(head_bonus);
 
-                    if pattern_idx == 0 {
-                        if pattern_char == self.char_buffer[0] {
-                            bonus *= BONUS_FIRST_CHAR_MULTIPLIER;
-                        }
+                    // if the first pattern init in 0, the find_viable_bounds
+                    // garantee that this text_idx is a match when the
+                    // init_byte_idx is 0.
+                    if is_first_pattern_char && text_idx == 0 {
+                        bonus *= BONUS_FIRST_CHAR_MULTIPLIER;
                     }
+
                     bonus += SCORE_MATCH;
                 } else {
                     consecutive = 0;
@@ -182,6 +186,7 @@ impl Matcher {
                 let left_is_a_match =
                     self.current_row[column - 1].consecutives > 0;
 
+                // penalty to gap
                 let s2 = if left_is_a_match {
                     left_score + SCORE_GAP_START
                 } else {
