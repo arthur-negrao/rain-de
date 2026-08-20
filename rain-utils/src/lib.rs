@@ -6,3 +6,5 @@ pub mod log;
 
 #[cfg(feature = "gtk")]
 pub mod ui;
+
+pub mod collections;
